@@ -39,8 +39,6 @@ st.markdown("---")
 
 # Sidebar untuk informasi tambahan
 with st.sidebar:
-    st.header("ℹ️ Tentang Proyek")
-    st.write("Aplikasi ini dibuat untuk memenuhi tugas Proyek Akhir (PA) mata kuliah Kecerdasan Buatan.")
     st.markdown("---")
     st.subheader("📋 Kelas Model:")
     for name in class_names:
