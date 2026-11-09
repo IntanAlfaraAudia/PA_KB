@@ -23,7 +23,7 @@ def load_model_and_labels():
 with st.spinner("Memuat model AI, silakan tunggu sebentar..."):
     model, class_names = load_model_and_labels()
 
-# Mendeteksi ukuran input secara otomatis dari model agar bebas error dimensi
+# Deteksi ukuran input dari model
 input_shape = model.input_shape
 if input_shape and len(input_shape) >= 3:
     img_height = input_shape[1] if input_shape[1] is not None else 150
@@ -38,39 +38,36 @@ st.write("Unggah gambar buah berry untuk mendeteksi jenisnya secara otomatis men
 uploaded_file = st.file_uploader("Pilih gambar buah berry (format JPG, JPEG, PNG)...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # Membuka gambar
     image = Image.open(uploaded_file)
-    
-    # Paksa konversi ke RGB (mencegah error jika gambar berformat RGBA/transparan atau Grayscale)
     image = image.convert("RGB")
-    
     st.image(image, caption="Gambar yang Diunggah", use_container_width=True)
     
-    # Ubah ukuran gambar sesuai dengan ekspektasi ukuran input model secara otomatis
     image_resized = image.resize((img_width, img_height))
     
-    img_array = np.array(image_resized)
-    
-    # Normalisasi piksel (dibagi 255.0)
-    img_array = img_array.astype("float32") / 255.0
+    # Ubah ke numpy array tanpa dibagi 255 (karena model sudah menangani rescaling sendiri jika ada layer Rescaling)
+    img_array = np.array(image_resized, dtype=np.float32)
     
     # Tambahkan dimensi batch (1, height, width, channels)
     img_array = np.expand_dims(img_array, axis=0)
 
     if st.button("🔍 Prediksi Jenis Berry"):
         with st.spinner("Sedang menganalisis gambar..."):
-            predictions = model.predict(img_array)
-            
-            # Ambil kelas dengan probabilitas tertinggi
-            predicted_index = np.argmax(predictions[0])
-            predicted_class = class_names[predicted_index]
-            confidence = float(np.max(predictions[0])) * 100
+            try:
+                # Tampilkan info debug di web untuk memastikan bentuknya
+                st.info(f"Debug -> Model Input Shape: {model.input_shape} | Image Shape: {img_array.shape}")
+                
+                predictions = model.predict(img_array)
+                
+                predicted_index = np.argmax(predictions[0])
+                predicted_class = class_names[predicted_index]
+                confidence = float(np.max(predictions[0])) * 100
 
-            # Tampilkan Hasil Prediksi
-            st.success(f"**Hasil Prediksi:** {predicted_class}")
-            st.info(f"**Tingkat Kepercayaan (Confidence):** {confidence:.2f}%")
-            
-            # Menampilkan rincian probabilitas semua kelas
-            with st.expander("Lihat Detail Probabilitas Semua Kelas"):
-                for idx, score in enumerate(predictions[0]):
-                    st.write(f"- {class_names[idx]}: `{score*100:.2f}%`")
+                st.success(f"**Hasil Prediksi:** {predicted_class}")
+                st.info(f"**Tingkat Kepercayaan (Confidence):** {confidence:.2f}%")
+                
+                with st.expander("Lihat Detail Probabilitas Semua Kelas"):
+                    for idx, score in enumerate(predictions[0]):
+                        st.write(f"- {class_names[idx]}: `{score*100:.2f}%`")
+                        
+            except Exception as e:
+                st.error(f"Terjadi Error saat prediksi: `{str(e)}`")
