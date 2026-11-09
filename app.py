@@ -2,6 +2,7 @@ import streamlit as st
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
+import pandas as pd
 from PIL import Image
 import json
 
@@ -23,7 +24,7 @@ def load_model_and_labels():
 with st.spinner("Memuat model AI, silakan tunggu sebentar..."):
     model, class_names = load_model_and_labels()
 
-# Deteksi ukuran input dari model
+# Deteksi ukuran input dari model secara otomatis
 input_shape = model.input_shape
 if input_shape and len(input_shape) >= 3:
     img_height = input_shape[1] if input_shape[1] is not None else 150
@@ -33,41 +34,62 @@ else:
 
 # Antarmuka Pengguna (UI)
 st.title("🍓 Aplikasi Klasifikasi Citra Berry")
-st.write("Unggah gambar buah berry untuk mendeteksi jenisnya secara otomatis menggunakan model Convolutional Neural Network (CNN).")
+st.markdown("Aplikasi web berbasis **Convolutional Neural Network (CNN)** untuk mendeteksi jenis buah berry secara otomatis.")
+st.markdown("---")
 
-uploaded_file = st.file_uploader("Pilih gambar buah berry (format JPG, JPEG, PNG)...", type=["jpg", "jpeg", "png"])
+# Sidebar untuk informasi tambahan
+with st.sidebar:
+    st.header("ℹ️ Tentang Proyek")
+    st.write("Aplikasi ini dibuat untuk memenuhi tugas Proyek Akhir (PA) mata kuliah Kecerdasan Buatan.")
+    st.markdown("---")
+    st.subheader("📋 Kelas Model:")
+    for name in class_names:
+        st.code(name)
+
+# Unggah Gambar
+uploaded_file = st.file_uploader("Pilih atau seret gambar buah berry di sini...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     image = image.convert("RGB")
-    st.image(image, caption="Gambar yang Diunggah", use_container_width=True)
     
+    # Tampilkan gambar dengan tata letak yang rapi
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.image(image, caption="Gambar yang Diunggah", use_container_width=True)
+    
+    with col2:
+        st.info("💡 **Tips Pengujian:**\nPastikan gambar buah berry terlihat jelas agar model dapat memberikan tingkat akurasi (confidence) yang tinggi.")
+    
+    # Pra-pemrosesan gambar
     image_resized = image.resize((img_width, img_height))
-    
-    # Ubah ke numpy array tanpa dibagi 255 (karena model sudah menangani rescaling sendiri jika ada layer Rescaling)
     img_array = np.array(image_resized, dtype=np.float32)
-    
-    # Tambahkan dimensi batch (1, height, width, channels)
     img_array = np.expand_dims(img_array, axis=0)
 
-    if st.button("🔍 Prediksi Jenis Berry"):
-        with st.spinner("Sedang menganalisis gambar..."):
+    if st.button("🔍 Jalankan Prediksi", type="primary", use_container_width=True):
+        with st.spinner("Model sedang menganalisis pola gambar..."):
             try:
-                # Tampilkan info debug di web untuk memastikan bentuknya
-                st.info(f"Debug -> Model Input Shape: {model.input_shape} | Image Shape: {img_array.shape}")
-                
                 predictions = model.predict(img_array)
                 
                 predicted_index = np.argmax(predictions[0])
                 predicted_class = class_names[predicted_index]
                 confidence = float(np.max(predictions[0])) * 100
 
-                st.success(f"**Hasil Prediksi:** {predicted_class}")
-                st.info(f"**Tingkat Kepercayaan (Confidence):** {confidence:.2f}%")
+                st.markdown("---")
+                st.subheader("🎯 Hasil Analisis Model")
                 
-                with st.expander("Lihat Detail Probabilitas Semua Kelas"):
-                    for idx, score in enumerate(predictions[0]):
-                        st.write(f"- {class_names[idx]}: `{score*100:.2f}%`")
+                # Kotak hasil menonjol
+                st.success(f"**Jenis Berry Terdeteksi:** `{predicted_class}`")
+                st.metric(label="Tingkat Kepercayaan (Confidence)", value=f"{confidence:.2f}%")
+                
+                # Visualisasi Grafik Batang (Bar Chart) untuk semua kelas
+                st.markdown("### 📊 Grafik Probabilitas Semua Kelas")
+                chart_data = pd.DataFrame({
+                    'Kelas Berry': class_names,
+                    'Probabilitas': predictions[0] * 100
+                }).set_index('Kelas Berry')
+                
+                st.bar_chart(chart_data)
                         
             except Exception as e:
-                st.error(f"Terjadi Error saat prediksi: `{str(e)}`")
+                st.error(f"Terjadi Kesalahan saat prediksi: `{str(e)}`")
