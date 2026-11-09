@@ -23,6 +23,14 @@ def load_model_and_labels():
 with st.spinner("Memuat model AI, silakan tunggu sebentar..."):
     model, class_names = load_model_and_labels()
 
+# Mendeteksi ukuran input secara otomatis dari model agar bebas error dimensi
+input_shape = model.input_shape
+if input_shape and len(input_shape) >= 3:
+    img_height = input_shape[1] if input_shape[1] is not None else 150
+    img_width = input_shape[2] if input_shape[2] is not None else 150
+else:
+    img_height, img_width = 150, 150
+
 # Antarmuka Pengguna (UI)
 st.title("🍓 Aplikasi Klasifikasi Citra Berry")
 st.write("Unggah gambar buah berry untuk mendeteksi jenisnya secara otomatis menggunakan model Convolutional Neural Network (CNN).")
@@ -38,13 +46,12 @@ if uploaded_file is not None:
     
     st.image(image, caption="Gambar yang Diunggah", use_container_width=True)
     
-    # Pra-pemrosesan gambar (Sesuaikan img_height dan img_width dengan ukuran saat training di Colab)
-    img_height, img_width = 150, 150  # Ganti jika saat training Anda menggunakan ukuran lain (misal: 224)
+    # Ubah ukuran gambar sesuai dengan ekspektasi ukuran input model secara otomatis
     image_resized = image.resize((img_width, img_height))
     
     img_array = np.array(image_resized)
     
-    # Normalisasi piksel (dibagi 255.0 seperti saat training)
+    # Normalisasi piksel (dibagi 255.0)
     img_array = img_array.astype("float32") / 255.0
     
     # Tambahkan dimensi batch (1, height, width, channels)
